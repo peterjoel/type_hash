@@ -12,6 +12,8 @@ Internal macro definitions. They may not work properly if not used via the type_
 proc-macro = true
 
 [dependencies]
+bind_match = "0.1"
+darling = "0.11"
 either = "1.6"
 proc-macro2 = "1"
 quote = "1"
