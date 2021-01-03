@@ -42,7 +42,7 @@ fn type_hash_enum(ident: &Ident, generics: &Generics, data: &DataEnum) -> TokenS
             .iter()
             .map(|(_, discriminant)| {
                 quote! {
-                    <isize as std::hash::Hash>::hash(&(#discriminant), hasher);
+                    std::hash::Hash::hash(&(#discriminant as isize), hasher);
                 }
             })
             .chain(write_field_hashes(&v.fields).into_iter().flatten())
