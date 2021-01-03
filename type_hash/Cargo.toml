@@ -4,7 +4,16 @@ version = "0.1.0"
 authors = ["Peter Hall <peterjoel@gmail.com>"]
 edition = "2018"
 license = "MIT"
+description = """
+Generate a hash for a Rust type.
+
+The primary use-case for this crate is for detecting differences in message
+types between versions of a crate.
+
+The `TypeHash` trait is implemented for most built-in types and a derive macro
+is provided, for implementing it for your own types.
+"""
 
 [dependencies]
-type_hash_core = { path = "../core" }
-type_hash_macros = { path = "../macros" }
+type_hash_core = { version = "=0.1.0", path = "../core" }
+type_hash_macros = { version = "=0.1.0", path = "../macros" }

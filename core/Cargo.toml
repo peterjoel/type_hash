@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Peter Hall <peterjoel@gmail.com"]
 edition = "2018"
 license = "MIT"
+description = """
+Internal types for the type_hash crate.
+"""
 
 [dependencies]
 fnv = "1.0.7"
