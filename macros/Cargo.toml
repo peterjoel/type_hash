@@ -1,6 +1,6 @@
 [package]
 name = "type_hash_macros"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Peter Hall <peterjoel@gmail.com"]
 edition = "2018"
 license = "MIT"
@@ -16,7 +16,6 @@ either = "1.6"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = ["full"] }
-type_hash_core = { version = "=0.1.0", path = "../core" }
 
 [dev-dependencies]
 syn = { version = "1", features = ["extra-traits"] }
