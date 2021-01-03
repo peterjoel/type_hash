@@ -1,4 +1,4 @@
-use std::borrow::{Cow, ToOwned};
+use std::borrow::ToOwned;
 use std::hash::Hasher;
 
 /// A hash of a type's structure
@@ -14,9 +14,9 @@ pub trait TypeHash {
 }
 
 macro_rules! impl_type_hash {
-    ($( $($ty: ident)::* $(<$($l: lifetime,)* $($T: ident),+>)?,)*) => {
+    ($( $($ty: ident)::* $(<$($l: lifetime,)* $($T: ident $(: $(? $Sized: ident)? $($(+)? $B: ident)*)?),+>)?,)*) => {
         $(
-            impl $(<$($l,)* $($T: $crate::TypeHash),*>)? TypeHash for $($ty)::* $(<$($l,)* $($T),+>)? {
+            impl $(<$($l,)* $($T: $crate::TypeHash $($(+ ?$Sized)? $(+ $B)*)? ),*>)? TypeHash for $($ty)::* $(<$($l,)* $($T),+>)? {
                 fn write_hash(hasher: &mut impl std::hash::Hasher) {
                     hasher.write(stringify!($($ty)::*).as_bytes());
                     $($(
@@ -29,13 +29,28 @@ macro_rules! impl_type_hash {
 }
 
 impl_type_hash!(
-    bool, u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64,
+    bool,
+    u8,
+    i8,
+    u16,
+    i16,
+    u32,
+    i32,
+    u64,
+    i64,
+    u128,
+    i128,
+    usize,
+    isize,
+    f32,
+    f64,
     str,
     std::any::TypeId,
-    std::boxed::Box<T>,
-    std::cell::Cell<T>,
-    std::cell::Ref<'a, T>,
-    std::cell::RefCell<T>,
+    std::borrow::Cow<'a, T: ?Sized + ToOwned>,
+    std::boxed::Box<T: ?Sized>,
+    std::cell::Cell<T: ?Sized>,
+    std::cell::Ref<'a, T: ?Sized>,
+    std::cell::RefCell<T: ?Sized>,
     std::cell::RefMut<'a, T>,
     std::cell::UnsafeCell<T>,
     std::cmp::Ordering,
@@ -53,8 +68,8 @@ impl_type_hash!(
     std::ffi::OsStr,
     std::ffi::OsString,
     std::hash::BuildHasherDefault<T>,
-    std::marker::PhantomData<T>,
-    std::mem::ManuallyDrop<T>,
+    std::marker::PhantomData<T: ?Sized>,
+    std::mem::ManuallyDrop<T: ?Sized>,
     std::mem::MaybeUninit<T>,
     std::net::IpAddr,
     std::net::Ipv4Addr,
@@ -88,9 +103,9 @@ impl_type_hash!(
     std::path::PathBuf,
     std::pin::Pin<T>,
     std::primitive::char,
-    std::ptr::NonNull<T>,
-    std::rc::Rc<T>,
-    std::rc::Weak<T>,
+    std::ptr::NonNull<T: ?Sized>,
+    std::rc::Rc<T: ?Sized>,
+    std::rc::Weak<T: ?Sized>,
     std::result::Result<T, E>,
     std::string::String,
     std::sync::atomic::AtomicBool,
@@ -108,13 +123,13 @@ impl_type_hash!(
     std::sync::mpsc::Receiver<T>,
     std::sync::mpsc::Sender<T>,
     std::sync::mpsc::SyncSender<T>,
-    std::sync::Arc<T>,
-    std::sync::Mutex<T>,
+    std::sync::Arc<T: ?Sized>,
+    std::sync::Mutex<T: ?Sized>,
     std::sync::Once,
-    std::sync::RwLock<T>,
-    std::sync::RwLockReadGuard<'a, T>,
-    std::sync::RwLockWriteGuard<'a, T>,
-    std::sync::Weak<T>,
+    std::sync::RwLock<T: ?Sized>,
+    std::sync::RwLockReadGuard<'a, T: ?Sized>,
+    std::sync::RwLockWriteGuard<'a, T: ?Sized>,
+    std::sync::Weak<T: ?Sized>,
     std::thread::Builder,
     std::thread::JoinHandle<T>,
     std::thread::LocalKey<T>,
@@ -155,7 +170,7 @@ impl_type_hash_tuple!((A, B, C, D, E, F, G, H, I, J, K, L,));
 
 macro_rules! impl_type_hash_array {
     ([$T: ident; $n: literal]) => {
-        impl <$T: $crate::TypeHash> TypeHash for [$T; $n] {
+        impl<$T: $crate::TypeHash> TypeHash for [$T; $n] {
             fn write_hash(hasher: &mut impl std::hash::Hasher) {
                 hasher.write(b"[;]");
                 hasher.write_usize($n);
@@ -199,14 +214,14 @@ impl_type_hash_array!([T; 30]);
 impl_type_hash_array!([T; 31]);
 impl_type_hash_array!([T; 32]);
 
-impl<T: TypeHash> TypeHash for *const T {
+impl<T: TypeHash + ?Sized> TypeHash for *const T {
     fn write_hash(hasher: &mut impl Hasher) {
         hasher.write(b"*const");
         T::write_hash(hasher);
     }
 }
 
-impl<T: TypeHash> TypeHash for *mut T {
+impl<T: TypeHash + ?Sized> TypeHash for *mut T {
     fn write_hash(hasher: &mut impl Hasher) {
         hasher.write(b"*mut");
         T::write_hash(hasher);
@@ -220,23 +235,16 @@ impl<T: TypeHash> TypeHash for [T] {
     }
 }
 
-impl<'a, T: TypeHash> TypeHash for &'a T {
+impl<'a, T: TypeHash + ?Sized> TypeHash for &'a T {
     fn write_hash(hasher: &mut impl Hasher) {
         hasher.write(b"&");
         T::write_hash(hasher);
     }
 }
 
-impl<'a, T: TypeHash> TypeHash for &'a mut T {
+impl<'a, T: TypeHash + ?Sized> TypeHash for &'a mut T {
     fn write_hash(hasher: &mut impl Hasher) {
         hasher.write(b"&mut");
-        T::write_hash(hasher);
-    }
-}
-
-impl<'a, T: TypeHash + ToOwned> TypeHash for Cow<'a, T> {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"std::borrow::Cow");
         T::write_hash(hasher);
     }
 }

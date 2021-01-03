@@ -37,11 +37,16 @@ fn type_hash_struct(ident: &Ident, _generics: &Generics, data: &DataStruct) -> T
 // TODO handle generics
 fn type_hash_enum(ident: &Ident, _generics: &Generics, data: &DataEnum) -> TokenStream {
     let name = ident.to_string();
-    let variants = data
-        .variants
-        .iter()
-        .flat_map(|v| write_field_hashes(&v.fields))
-        .flatten();
+    let variants = data.variants.iter().flat_map(|v| {
+        v.discriminant
+            .iter()
+            .map(|(_, discriminant)| {
+                quote! {
+                    <isize as std::hash::Hash>::hash(&(#discriminant), hasher);
+                }
+            })
+            .chain(write_field_hashes(&v.fields).into_iter().flatten())
+    });
     quote! {
         impl type_hash::TypeHash for #ident {
             fn write_hash(hasher: &mut impl std::hash::Hasher) {
