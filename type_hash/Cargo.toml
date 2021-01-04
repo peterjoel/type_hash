@@ -1,6 +1,6 @@
 [package]
 name = "type_hash"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Peter Hall <peterjoel@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -16,4 +16,4 @@ is provided, for implementing it for your own types.
 
 [dependencies]
 type_hash_core = { version = "=0.2.0", path = "../core" }
-type_hash_macros = { version = "=0.2.1", path = "../macros" }
+type_hash_macros = { version = "=0.2.2", path = "../macros" }

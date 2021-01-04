@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_macro_input, spanned::Spanned, Data, DataEnum, DataStruct, DataUnion, DeriveInput,
-    Fields, GenericParam, Generics, Ident, ImplGenerics, TypeGenerics,
+    Fields, GenericParam, Generics, Ident, ImplGenerics, TypeGenerics, WhereClause,
 };
 
 #[proc_macro_derive(TypeHash)]
@@ -88,12 +88,13 @@ fn type_hash_union(_ident: &Ident, data: &DataUnion) -> TokenStream {
     }
 }
 
-struct DeriveWhereClause<'a>(&'a Generics);
+struct DeriveWhereClause<'a>(&'a Generics, Option<&'a WhereClause>);
 
 impl<'a> ToTokens for DeriveWhereClause<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut params = self
-            .0
+        let generics = &self.0;
+        let mut predicates = self.1.iter().flat_map(|w| &w.predicates).peekable();
+        let mut params = generics
             .params
             .iter()
             .filter_map(|param| {
@@ -104,17 +105,17 @@ impl<'a> ToTokens for DeriveWhereClause<'a> {
                 }
             })
             .peekable();
-        if params.peek().is_some() {
-            let where_clause = quote! {
-                where #(#params: type_hash::TypeHash),*
+        if params.peek().is_some() || predicates.next().is_some() {
+            let clause = quote! {
+                where #(#params: type_hash::TypeHash,)* #(#predicates,)*
             };
-            where_clause.to_tokens(tokens);
+            clause.to_tokens(tokens);
         }
     }
 }
 
 fn split_generics(generics: &Generics) -> (ImplGenerics, TypeGenerics, DeriveWhereClause<'_>) {
-    let (impl_generics, ty_generics, _) = generics.split_for_impl();
-    let where_clause = DeriveWhereClause(generics);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let where_clause = DeriveWhereClause(&generics, where_clause);
     (impl_generics, ty_generics, where_clause)
 }
