@@ -34,6 +34,12 @@ fn different_custom_type_with_same_name_and_structure_has_same_hash() {
 }
 
 #[test]
+fn different_custom_type_with_overridden_field_type_has_same_hash() {
+    assert_eq!(v1::Foo::type_hash(), v3::Foo::type_hash());
+    assert_eq!(v1::SameStruct::type_hash(), v3::SameStruct::type_hash());
+}
+
+#[test]
 fn custom_type_with_different_structure_has_different_hash() {
     assert_ne!(v1::Foo::type_hash(), v2::Foo::type_hash());
     assert_ne!(v1::Bar::type_hash(), v2::Bar::type_hash());
@@ -109,5 +115,43 @@ mod v2 {
     pub enum SameEnum {
         X,
         Y(Box<[String]>, bool),
+    }
+}
+
+#[allow(unused)]
+mod v3 {
+    use type_hash::TypeHash;
+
+    #[derive(TypeHash)]
+    pub struct Foo {
+        #[type_hash(as = "i64")]
+        a: u64, // <-- this field has a different type, but treat it as the same
+        b: String,
+    }
+
+    #[derive(TypeHash)]
+    pub enum Bar {
+        A = 1,
+        B = 3,
+    }
+
+    #[derive(TypeHash)]
+    pub enum Wibble {
+        A(Bar),
+        B(Foo, Foo),
+        C { foo: Foo },
+    }
+
+    #[derive(TypeHash)]
+    pub struct SameStruct {
+        x: Vec<u32>,
+        #[type_hash(as = "super::v1::SameEnum")]
+        y: DifferentEnum,
+    }
+
+    #[derive(TypeHash)]
+    pub enum DifferentEnum {
+        X,
+        Abc(bool),
     }
 }

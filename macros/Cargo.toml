@@ -7,6 +7,11 @@ license = "MIT"
 description = """
 Internal macro definitions. They may not work properly if not used via the type_hash crate.
 """
+documentation = "https://docs.rs/type_hash"
+homepage = "https://github.com/peterjoel/type_hash"
+repository = "https://github.com/peterjoel/type_hash"
+keywords = ["type", "struct", "hash", "macro"]
+categories = ["data-structures", "rust-patterns"]
 
 [lib]
 proc-macro = true
@@ -15,7 +20,7 @@ proc-macro = true
 either = "1.6"
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "1", features = ["full"] }
+syn = { version = "1", features = ["full", "parsing"] }
 
 [dev-dependencies]
 syn = { version = "1", features = ["extra-traits"] }

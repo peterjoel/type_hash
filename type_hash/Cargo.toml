@@ -13,6 +13,11 @@ types between versions of a crate.
 The `TypeHash` trait is implemented for most built-in types and a derive macro
 is provided, for implementing it for your own types.
 """
+documentation = "https://docs.rs/type_hash"
+homepage = "https://github.com/peterjoel/type_hash"
+repository = "https://github.com/peterjoel/type_hash"
+keywords = ["type", "struct", "hash", "macro"]
+categories = ["data-structures", "rust-patterns"]
 
 [dependencies]
 type_hash_core = { version = "=0.2.0", path = "../core" }

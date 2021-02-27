@@ -2,11 +2,12 @@ use either::Either;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_macro_input, spanned::Spanned, Data, DataEnum, DataStruct, DataUnion, DeriveInput,
-    Fields, GenericParam, Generics, Ident, ImplGenerics, TypeGenerics, WhereClause,
+    parse_macro_input, spanned::Spanned, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field,
+    Fields, GenericParam, Generics, Ident, ImplGenerics, Lit, Meta, MetaNameValue, Type,
+    TypeGenerics, WhereClause,
 };
 
-#[proc_macro_derive(TypeHash)]
+#[proc_macro_derive(TypeHash, attributes(type_hash))]
 pub fn derive_type_hash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     type_hash_impl(input).into()
@@ -62,13 +63,18 @@ fn write_field_hashes(fields: &Fields) -> Option<impl Iterator<Item = TokenStrea
         Fields::Unit => None,
         Fields::Named(fields) => {
             Some(Either::Left(fields.named.iter().map(|f| {
-                // safe to unwrap because we've matched named fields
-                let field_name = f.ident.as_ref().unwrap().to_string();
-                let field_type = &f.ty;
-                quote! {
-                    hasher.write(#field_name.as_bytes());
-                    <#field_type as type_hash::TypeHash>::write_hash(hasher);
+                match field_attrs(f) {
+                    Ok(Some(tokens)) => tokens,
+                    Ok(None) => TokenStream::new(),
+                    Err(tokens) => tokens,
                 }
+                // // safe to unwrap because we've matched named fields
+                // let field_name = f.ident.as_ref().unwrap().to_string();
+                // let field_type = field_type(&f);
+                // quote! {
+                //     hasher.write(#field_name.as_bytes());
+                //     <#field_type as type_hash::TypeHash>::write_hash(hasher);
+                // }
             })))
         }
         Fields::Unnamed(fields) => Some(Either::Right(fields.unnamed.iter().map(|f| {
@@ -78,6 +84,76 @@ fn write_field_hashes(fields: &Fields) -> Option<impl Iterator<Item = TokenStrea
             }
         }))),
     }
+}
+
+// TODO: This is gnarly. Use something like darling to parse the attributes more cleanly
+fn field_attrs(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
+    // safe to unwrap because this is only used for named fields
+    let field_name = field.ident.as_ref().unwrap().to_token_stream().to_string();
+    for att in &field.attrs {
+        if let Some(name) = att.path.get_ident() {
+            if name == "type_hash" {
+                match att.parse_args() {
+                    Ok(Meta::NameValue(MetaNameValue { path, lit, .. })) => {
+                        if let (Some(name), Lit::Str(val)) = (path.get_ident(), lit) {
+                            if name == "as" {
+                                if let Ok(ty) = val.parse::<Type>() {
+                                    return Ok(Some(quote! {
+                                        hasher.write(#field_name.as_bytes());
+                                        <#ty as type_hash::TypeHash>::write_hash(hasher);
+                                    }));
+                                } else {
+                                    return Err(quote_spanned! {
+                                        val.span()=>
+                                        compile_error!("Invalid type");
+                                    });
+                                }
+                            }
+                        }
+                        return Err(quote_spanned! {
+                            att.span()=>
+                            compile_error!("Unsupported metadata");
+                        });
+                    }
+                    Ok(Meta::Path(path)) => {
+                        if let Some(name) = path.get_ident() {
+                            if name == "skip" {
+                                return Ok(None);
+                            } else if name == "foreign_type" {
+                                let type_str = field.ty.to_token_stream().to_string();
+                                return Ok(Some(quote! {
+                                    hasher.write(#field_name.as_bytes());
+                                    hasher.write(#type_str.as_bytes());
+                                }));
+                            }
+                        }
+                        return Err(quote_spanned! {
+                            name.span()=>
+                            compile_error!("Unsupported metadata");
+                        });
+                    }
+                    Ok(m) => {
+                        return Err(quote_spanned! {
+                            m.span()=>
+                            compile_error!("Unsupported metadata");
+                        });
+                    }
+                    Err(e) => {
+                        let e = e.to_string();
+                        return Err(quote_spanned! {
+                            att.span()=>
+                            compile_error!("{}", #e);
+                        });
+                    }
+                }
+            }
+        }
+    }
+    let field_type = &field.ty;
+    Ok(Some(quote! {
+        hasher.write(#field_name.as_bytes());
+        <#field_type as type_hash::TypeHash>::write_hash(hasher);
+    }))
 }
 
 // TODO Support unions
