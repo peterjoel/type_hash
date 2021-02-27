@@ -1,6 +1,6 @@
 [package]
 name = "type_hash"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Peter Hall <peterjoel@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -21,4 +21,4 @@ categories = ["data-structures", "rust-patterns"]
 
 [dependencies]
 type_hash_core = { version = "=0.2.0", path = "../core" }
-type_hash_macros = { version = "=0.2.2", path = "../macros" }
+type_hash_macros = { version = "=0.3.0", path = "../macros" }
