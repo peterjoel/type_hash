@@ -23,7 +23,9 @@ fn type_hash_impl(input: DeriveInput) -> TokenStream {
 
 fn type_hash_struct(ident: &Ident, generics: &Generics, data: &DataStruct) -> TokenStream {
     let name = ident.to_string();
-    let fields = write_field_hashes(&data.fields).into_iter().flatten();
+    let fields = write_struct_field_hashes(&data.fields)
+        .into_iter()
+        .flatten();
     let (impl_generics, ty_generics, where_clause) = split_generics(generics);
     quote! {
         impl#impl_generics type_hash::TypeHash for #ident#ty_generics #where_clause {
@@ -46,7 +48,7 @@ fn type_hash_enum(ident: &Ident, generics: &Generics, data: &DataEnum) -> TokenS
                     std::hash::Hash::hash(&(#discriminant as isize), hasher);
                 }
             })
-            .chain(write_field_hashes(&v.fields).into_iter().flatten())
+            .chain(write_struct_field_hashes(&v.fields).into_iter().flatten())
     });
     quote! {
         impl#impl_generics type_hash::TypeHash for #ident#ty_generics #where_clause{
@@ -58,38 +60,40 @@ fn type_hash_enum(ident: &Ident, generics: &Generics, data: &DataEnum) -> TokenS
     }
 }
 
-fn write_field_hashes(fields: &Fields) -> Option<impl Iterator<Item = TokenStream> + '_> {
+fn write_struct_field_hashes(fields: &Fields) -> Option<impl Iterator<Item = TokenStream> + '_> {
     match &fields {
         Fields::Unit => None,
         Fields::Named(fields) => {
-            Some(Either::Left(fields.named.iter().map(|f| {
-                match field_attrs(f) {
+            Some(Either::Left(fields.named.iter().map(
+                |f| match write_field_hash(f) {
                     Ok(Some(tokens)) => tokens,
                     Ok(None) => TokenStream::new(),
                     Err(tokens) => tokens,
-                }
-                // // safe to unwrap because we've matched named fields
-                // let field_name = f.ident.as_ref().unwrap().to_string();
-                // let field_type = field_type(&f);
-                // quote! {
-                //     hasher.write(#field_name.as_bytes());
-                //     <#field_type as type_hash::TypeHash>::write_hash(hasher);
-                // }
-            })))
+                },
+            )))
         }
-        Fields::Unnamed(fields) => Some(Either::Right(fields.unnamed.iter().map(|f| {
-            let field_type = f.ty.clone();
-            quote! {
-                <#field_type as type_hash::TypeHash>::write_hash(hasher);
-            }
-        }))),
+        Fields::Unnamed(fields) => {
+            Some(Either::Right(fields.unnamed.iter().map(
+                |f| match write_field_hash(f) {
+                    Ok(Some(tokens)) => tokens,
+                    Ok(None) => TokenStream::new(),
+                    Err(tokens) => tokens,
+                },
+            )))
+        }
     }
 }
 
 // TODO: This is gnarly. Use something like darling to parse the attributes more cleanly
-fn field_attrs(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
-    // safe to unwrap because this is only used for named fields
-    let field_name = field.ident.as_ref().unwrap().to_token_stream().to_string();
+fn write_field_hash(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
+    let field_name = field
+        .ident
+        .as_ref()
+        .map(|name| {
+            let name = name.to_token_stream().to_string();
+            quote! { hasher.write(#name.as_bytes()); }
+        })
+        .unwrap_or_default();
     for att in &field.attrs {
         if let Some(name) = att.path.get_ident() {
             if name == "type_hash" {
@@ -99,7 +103,7 @@ fn field_attrs(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
                             if name == "as" {
                                 if let Ok(ty) = val.parse::<Type>() {
                                     return Ok(Some(quote! {
-                                        hasher.write(#field_name.as_bytes());
+                                        #field_name
                                         <#ty as type_hash::TypeHash>::write_hash(hasher);
                                     }));
                                 } else {
@@ -122,7 +126,7 @@ fn field_attrs(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
                             } else if name == "foreign_type" {
                                 let type_str = field.ty.to_token_stream().to_string();
                                 return Ok(Some(quote! {
-                                    hasher.write(#field_name.as_bytes());
+                                    #field_name
                                     hasher.write(#type_str.as_bytes());
                                 }));
                             }
@@ -151,7 +155,7 @@ fn field_attrs(field: &Field) -> Result<Option<TokenStream>, TokenStream> {
     }
     let field_type = &field.ty;
     Ok(Some(quote! {
-        hasher.write(#field_name.as_bytes());
+        #field_name
         <#field_type as type_hash::TypeHash>::write_hash(hasher);
     }))
 }
