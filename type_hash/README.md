@@ -48,7 +48,7 @@ pub struct MyStruct {
 
 Skip a field, so it is not part of the hash.
 
-```
+```rust
 #[derive(TypeHash)]
 pub struct MyStruct {
     #[type_hash(skip)]
@@ -62,7 +62,7 @@ Hash a field as if it had a different type. This allows you to change the
 type of a field to a different type that is still compatible for your
 application, without affecting the hash.
 
-```
+```rust
 #[derive(TypeHash)]
 pub struct MyStruct {
     #[type_hash(as = "HashSet<i64>")]
