@@ -196,6 +196,6 @@ impl<'a> ToTokens for DeriveWhereClause<'a> {
 
 fn split_generics(generics: &Generics) -> (ImplGenerics, TypeGenerics, DeriveWhereClause<'_>) {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let where_clause = DeriveWhereClause(&generics, where_clause);
+    let where_clause = DeriveWhereClause(generics, where_clause);
     (impl_generics, ty_generics, where_clause)
 }
